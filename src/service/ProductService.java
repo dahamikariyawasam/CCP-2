@@ -1,0 +1,66 @@
+package service;
+
+import util.SingletonDatabase;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+public class ProductService {
+    private final Connection connection;
+
+    public ProductService(SingletonDatabase db) {
+        this.connection = db.getConnection();
+    }
+
+    // ✅ Add stock directly to the stock table (No product table insertion)
+    // ✅ Add stock entry into the stock table
+    public void addStock(int productId, String itemName, double price, int stockQuantity, int stockAlertLevel,
+                         String batchDate, String expiryDate, int warehouseId) throws SQLException {
+        String stockQuery = "INSERT INTO stock (product_id, item_name, price, quantity, stock_alert_level, batch_date, expiry_date, warehouse_id, created_at) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+        try (PreparedStatement stockStmt = connection.prepareStatement(stockQuery)) {
+            stockStmt.setInt(1, productId);  // ✅ Ensure a valid product ID
+            stockStmt.setString(2, itemName);
+            stockStmt.setDouble(3, price);
+            stockStmt.setInt(4, stockQuantity);
+            stockStmt.setInt(5, stockAlertLevel);
+            stockStmt.setString(6, batchDate);
+            stockStmt.setString(7, expiryDate);
+            stockStmt.setInt(8, warehouseId);
+
+            stockStmt.executeUpdate();
+        }
+    }
+
+
+    // ✅ Update stock quantity
+    public void updateStockQuantity(int stockId, int quantity) throws SQLException {
+        String query = "UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = NOW() WHERE id = ?";
+
+        System.out.println("Executing SQL Query: " + query);
+        System.out.println("Parameters: stockId=" + stockId + ", quantity=" + quantity);
+
+        executeUpdate(query, quantity, stockId);
+    }
+
+
+    // ✅ Execute an update query
+    private void executeUpdate(String query, Object... params) throws SQLException {
+        try (PreparedStatement stmt = prepareStatement(query, params)) {
+            stmt.executeUpdate();
+        }
+    }
+
+    // ✅ Prepare a statement with parameters
+    private PreparedStatement prepareStatement(String query, Object... params) throws SQLException {
+        PreparedStatement stmt = connection.prepareStatement(query);
+        for (int i = 0; i < params.length; i++) {
+            stmt.setObject(i + 1, params[i]);
+        }
+        return stmt;
+    }
+
+
+}

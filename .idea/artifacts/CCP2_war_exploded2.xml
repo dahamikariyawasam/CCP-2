@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="exploded-war" name="CCP2:war exploded2">
+    <output-path>$PROJECT_DIR$/out/artifacts/CCP2_war_exploded2</output-path>
+    <root id="root">
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="classes">
+          <element id="module-output" name="CCP2" />
+        </element>
+      </element>
+      <element id="javaee-facet-resources" facet="CCP2/web/Web" />
+    </root>
+  </artifact>
+</component>
