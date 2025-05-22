@@ -2,9 +2,8 @@ package service;
 
 import util.SingletonDatabase;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.*;
 
 public class ProductService {
     private final Connection connection;
@@ -14,14 +13,13 @@ public class ProductService {
     }
 
     // ✅ Add stock directly to the stock table (No product table insertion)
-    // ✅ Add stock entry into the stock table
     public void addStock(int productId, String itemName, double price, int stockQuantity, int stockAlertLevel,
                          String batchDate, String expiryDate, int warehouseId) throws SQLException {
         String stockQuery = "INSERT INTO stock (product_id, item_name, price, quantity, stock_alert_level, batch_date, expiry_date, warehouse_id, created_at) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
         try (PreparedStatement stockStmt = connection.prepareStatement(stockQuery)) {
-            stockStmt.setInt(1, productId);  // ✅ Ensure a valid product ID
+            stockStmt.setInt(1, productId);
             stockStmt.setString(2, itemName);
             stockStmt.setDouble(3, price);
             stockStmt.setInt(4, stockQuantity);
@@ -34,7 +32,6 @@ public class ProductService {
         }
     }
 
-
     // ✅ Update stock quantity
     public void updateStockQuantity(int stockId, int quantity) throws SQLException {
         String query = "UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = NOW() WHERE id = ?";
@@ -44,7 +41,6 @@ public class ProductService {
 
         executeUpdate(query, quantity, stockId);
     }
-
 
     // ✅ Execute an update query
     private void executeUpdate(String query, Object... params) throws SQLException {
@@ -62,5 +58,22 @@ public class ProductService {
         return stmt;
     }
 
+    // ✅ Retrieve all products from the products table
+    public List<Map<String, Object>> getAllProducts() throws SQLException {
+        String query = "SELECT id, name, price, discount FROM products";
+        List<Map<String, Object>> products = new ArrayList<>();
 
+        try (PreparedStatement stmt = connection.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> product = new HashMap<>();
+                product.put("id", rs.getInt("id"));
+                product.put("name", rs.getString("name"));
+                product.put("price", rs.getDouble("price"));
+                product.put("discount", rs.getDouble("discount"));
+                products.add(product);
+            }
+        }
+        return products;
+    }
 }
