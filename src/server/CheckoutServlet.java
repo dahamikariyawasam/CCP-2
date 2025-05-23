@@ -1,5 +1,8 @@
 package server;
 
+import service.BillService;
+import service.ProductService;
+import service.SalesService;
 import util.SingletonDatabase;
 
 import javax.servlet.ServletException;
@@ -35,17 +38,16 @@ public class CheckoutServlet extends HttpServlet {
 
         double change = cashTendered - totalAmount;
 
-        try (Connection conn = SingletonDatabase.getInstance().getConnection()) {
-            conn.setAutoCommit(false); // Start transaction
+        try {
+            Connection conn = SingletonDatabase.getInstance().getConnection();
+            conn.setAutoCommit(false); // ✅ Begin transaction
 
-            // ✅ Get next serial number
-            int serialNumber = 1;
-            try (Statement s = conn.createStatement();
-                 ResultSet rs = s.executeQuery("SELECT MAX(serial_number) FROM bills")) {
-                if (rs.next()) {
-                    serialNumber = rs.getInt(1) + 1;
-                }
-            }
+            BillService billService = new BillService(SingletonDatabase.getInstance());
+            ProductService productService = new ProductService(SingletonDatabase.getInstance());
+            SalesService salesService = new SalesService(SingletonDatabase.getInstance());
+
+            int serialNumber = billService.generateSerialNumber();
+            int userId = 1; // Default or fetched from session if needed
 
             for (Map<String, Object> item : cart) {
                 String itemName = (String) item.get("name");
@@ -55,40 +57,26 @@ public class CheckoutServlet extends HttpServlet {
 
                 double fullPrice = price * quantity;
                 double totalPrice = fullPrice * (1 - discount / 100);
+                int productId = productIdByName(conn, itemName);
 
-                // ✅ Insert into bills table
-                String sql = "INSERT INTO bills (serial_number, bill_date, item_name, quantity, full_price, total_price, discount, cash_tendered, change_amount) " +
-                        "VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?)";
-
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setInt(1, serialNumber);
-                    stmt.setString(2, itemName);
-                    stmt.setInt(3, quantity);
-                    stmt.setDouble(4, fullPrice);
-                    stmt.setDouble(5, totalPrice);
-                    stmt.setDouble(6, discount);
-                    stmt.setDouble(7, cashTendered);
-                    stmt.setDouble(8, change);
-                    stmt.executeUpdate();
+                // ✅ Save bill item
+                boolean billSaved = billService.saveBill(serialNumber, itemName, quantity, fullPrice, discount, totalPrice, cashTendered, change);
+                if (!billSaved) {
+                    conn.rollback();
+                    response.sendRedirect("checkout.jsp?error=Failed%20to%20save%20bill");
+                    return;
                 }
 
                 // ✅ Update stock
-                String updateQty = "UPDATE products SET stock_quantity = stock_quantity - ? WHERE name = ?";
-                try (PreparedStatement updateStmt = conn.prepareStatement(updateQty)) {
-                    updateStmt.setInt(1, quantity);
-                    updateStmt.setString(2, itemName);
-                    int affectedRows = updateStmt.executeUpdate();
-                    if (affectedRows == 0) {
-                        conn.rollback();
-                        response.sendRedirect("checkout.jsp?error=Product%20not%20found:%20" + itemName);
-                        return;
-                    }
-                }
+                productService.updateStockQuantity(productId, -quantity);
+
+                // ✅ Save sales record
+                salesService.recordSale(productId, userId, quantity, totalPrice, "Cash", "Paid");
             }
 
             conn.commit();
 
-            // ✅ Pass data to bill.jsp
+            // ✅ Pass bill info to session for bill.jsp
             session.setAttribute("billCart", cart);
             session.setAttribute("billCash", cashTendered);
             session.setAttribute("billChange", change);
@@ -102,5 +90,19 @@ public class CheckoutServlet extends HttpServlet {
             e.printStackTrace();
             response.sendRedirect("checkout.jsp?error=Database%20Error:%20" + e.getMessage().replace(" ", "%20"));
         }
+    }
+
+    // ✅ Helper to get product ID by name
+    private int productIdByName(Connection conn, String itemName) throws SQLException {
+        String sql = "SELECT id FROM products WHERE name = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, itemName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+            }
+        }
+        throw new SQLException("Product not found: " + itemName);
     }
 }

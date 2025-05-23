@@ -1,5 +1,6 @@
 package server;
 
+import service.UserService;
 import util.SingletonDatabase;
 
 import javax.servlet.ServletException;
@@ -18,17 +19,17 @@ public class CreateAccountServlet extends HttpServlet {
         String username = request.getParameter("username").trim();
         String password = request.getParameter("password").trim();
 
-        // ✅ Safely handle null role parameter
+        // ✅ Handle missing role
         String role = request.getParameter("role");
         if (role == null || role.trim().isEmpty()) {
-            role = "customer";  // Set default role
+            role = "customer";
         } else {
             role = role.trim();
         }
 
         try (Connection conn = SingletonDatabase.getInstance().getConnection()) {
 
-            // Check if username already exists
+            // ✅ Check for existing user
             String checkSql = "SELECT * FROM users WHERE username = ?";
             try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
                 checkStmt.setString(1, username);
@@ -39,21 +40,16 @@ public class CreateAccountServlet extends HttpServlet {
                 }
             }
 
-            // Insert new user
-            String insertSql = "INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, NOW())";
-            try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
-                insertStmt.setString(1, username);
-                insertStmt.setString(2, password);
-                insertStmt.setString(3, role);
+            // ✅ Call UserService to insert user
+            UserService userService = new UserService(SingletonDatabase.getInstance());
+            boolean success = userService.createUser(username, password, role);
 
-                int rowsInserted = insertStmt.executeUpdate();
-                if (rowsInserted > 0) {
-                    System.out.println("✅ New user created: " + username);
-                    response.sendRedirect(request.getContextPath() + "/login.jsp?registered=1");
-                } else {
-                    System.out.println("❌ User creation failed");
-                    response.sendRedirect(request.getContextPath() + "/createaccount.jsp?error=insert");
-                }
+            if (success) {
+                System.out.println("✅ New user created: " + username);
+                response.sendRedirect(request.getContextPath() + "/login.jsp?registered=1");
+            } else {
+                System.out.println("❌ User creation failed");
+                response.sendRedirect(request.getContextPath() + "/createaccount.jsp?error=insert");
             }
 
         } catch (SQLException e) {

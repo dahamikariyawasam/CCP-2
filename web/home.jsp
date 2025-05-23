@@ -3,6 +3,14 @@
 <%@ page import="util.SingletonDatabase" %>
 <%@ page import="java.util.*" %>
 
+<%
+    String username = (String) session.getAttribute("username");
+    if (username == null) {
+        response.sendRedirect("login.jsp");
+        return;
+    }
+%>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -19,29 +27,58 @@
             background-color: #004d00;
             color: white;
             padding: 20px;
-            text-align: center;
-            font-size: 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 20px;
+        }
+
+        .user-info {
+            margin-left: 20px;
+        }
+
+        .logout-btn {
+            background: transparent;
+            color: white;
+            padding: 8px 14px;
+            text-decoration: none;
+            border: 2px solid white;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+
+        .logout-btn:hover {
+            background-color: white;
+            color: #004d00;
         }
 
         nav {
             background-color: #e0e0e0;
-            padding: 10px;
+            padding: 12px 0;
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 40px;
         }
 
         nav a {
             text-decoration: none;
             color: #004d00;
             font-weight: bold;
-            padding: 8px 12px;
-            border-radius: 5px;
+            font-size: 16px;
+            padding: 8px 20px;
+            border-radius: 6px;
         }
 
         nav a:hover {
             background-color: #004d00;
             color: white;
+        }
+
+        .banner {
+            width: 100%;
+            height: auto;
+            display: block;
         }
 
         .content {
@@ -63,40 +100,50 @@
 
         .card {
             background: white;
-            width: 240px;
+            width: 250px;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 0 10px #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
             text-align: center;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
 
         .card h3 {
-            margin-top: 0;
+            margin-top: 10px;
         }
 
         .price {
             font-size: 18px;
-            color: green;
+            color: #2e7d32;
+            font-weight: bold;
         }
 
         .discount {
-            color: red;
+            color: #d32f2f;
+            font-size: 14px;
+            margin-top: 5px;
         }
 
         .card button {
             background-color: #004d00;
             color: white;
-            padding: 8px 14px;
+            padding: 10px 14px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 15px;
         }
 
         .card button:hover {
             background-color: #006600;
         }
     </style>
+
     <%
         String cartMsg = (String) session.getAttribute("cartMsg");
         if (cartMsg != null) {
@@ -131,15 +178,18 @@
 </head>
 <body>
 
-<header>Welcome to SYOS Customer Portal</header>
+<header>
+    <div class="user-info">Welcome, <%= username %> 👋</div>
+    <a href="login.jsp" class="logout-btn">Logout</a>
+</header>
 
 <nav>
-    <a href="login.jsp">Login</a>
-    <a href="createaccount.jsp">Sign Up</a>
+    <a href="home.jsp">Home</a>
     <a href="itemcart.jsp">Cart</a>
     <a href="checkout.jsp">Checkout</a>
 </nav>
-<img src="images/Synex.png" alt="SYOS Banner" style="width:100%; height:auto; display:block;"/>
+
+<img src="images/Synex.png" alt="SYOS Banner" class="banner"/>
 
 <div class="content">
     <h2>What would you like?</h2>

@@ -27,7 +27,6 @@ public class ProductService {
             stockStmt.setString(6, batchDate);
             stockStmt.setString(7, expiryDate);
             stockStmt.setInt(8, warehouseId);
-
             stockStmt.executeUpdate();
         }
     }
@@ -35,10 +34,8 @@ public class ProductService {
     // ✅ Update stock quantity
     public void updateStockQuantity(int stockId, int quantity) throws SQLException {
         String query = "UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = NOW() WHERE id = ?";
-
         System.out.println("Executing SQL Query: " + query);
         System.out.println("Parameters: stockId=" + stockId + ", quantity=" + quantity);
-
         executeUpdate(query, quantity, stockId);
     }
 
@@ -75,5 +72,25 @@ public class ProductService {
             }
         }
         return products;
+    }
+
+    // ✅ Add or update stock in products table
+    public void upsertProductStock(int productId, String name, double price, int quantity, int alertLevel, double discount) throws SQLException {
+        String checkQuery = "SELECT COUNT(*) FROM products WHERE id = ?";
+        try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
+            checkStmt.setInt(1, productId);
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    // Product exists → update quantity, price and discount
+                    String updateQuery = "UPDATE products SET stock_quantity = stock_quantity + ?, price = ?, discount = ?, updated_at = NOW() WHERE id = ?";
+                    executeUpdate(updateQuery, quantity, price, discount, productId);
+                } else {
+                    // Product does not exist → insert new product
+                    String insertQuery = "INSERT INTO products (id, name, price, stock_quantity, stock_alert_level, discount, created_at) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, NOW())";
+                    executeUpdate(insertQuery, productId, name, price, quantity, alertLevel, discount);
+                }
+            }
+        }
     }
 }
